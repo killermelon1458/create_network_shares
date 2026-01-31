@@ -1,3 +1,46 @@
+## ⚠️ DO NOT FOLLOW THIS README (DEPRECATED / BROKE SYSTEM)
+
+This document describes an approach I tried to make the SV08’s USB and a network share mount “conveniently” inside:
+
+```
+/home/sovol/printer_data/gcodes/
+```
+
+**Do not repeat these steps. They break the SV08 UI and can break printing.**
+
+---
+
+### What broke and why
+
+The SV08 (Klipper + Mainsail + Moonraker + KlipperScreen) relies on fast, reliable access to the directory:
+
+```
+/home/sovol/printer_data/gcodes/
+```
+
+That directory is effectively the printer’s *virtual SD card* (Klipper’s `virtual_sdcard` path). Both the physical screen and the web UI enumerate this directory to list available print files.
+
+This README added **systemd automount (autofs) mountpoints** *inside* that directory:
+
+* `/home/sovol/printer_data/gcodes/USB` (USB drive)
+* `/home/sovol/printer_data/gcodes/Network` (CIFS / SMB share)
+
+These mounts were configured via `/etc/fstab` using `x-systemd.automount`.
+
+#### Failure mode
+
+When Linux lists the `gcodes/` directory, `autofs` attempts to resolve and activate those mountpoints. If the USB device is not present, if the CIFS share is slow or unavailable, or if the mount blocks for any reason, the directory listing itself can stall.
+
+This cascades into multiple failures:
+
+* **Physical print menu freeze or long hang** (screen tries to list print files → blocks)
+* **Mainsail showing “Not connecting to Moonraker”** when Moonraker’s file manager calls block
+* Stale or incorrect file lists
+
+This failure was directly observed: listing `gcodes/` took minutes and showed `d?????????` entries for `USB` and `Network`, indicating unresolved autofs mountpoints.
+
+---
+
 Klipper + Windows Network & USB Setup (Clean Guide)
 
 This guide documents the working setup we built. **All credentials and host details are placeholders**—replace with your values:
